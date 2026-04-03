@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Beauty Studio</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --container-bg: #ffffff;
+            --text-main: #2d3436;
+            --accent: #ff85a2; /* Нежно-розовый */
+            --accent-soft: #fff0f3;
+            --border-radius: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center; /* Центрируем контейнер на широких экранах */
+            min-height: 100vh;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 480px; /* Ограничение ширины, чтобы не растягивалось на весь монитор */
+            background: var(--container-bg);
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        h2 { font-size: 1.1rem; margin: 20px 0 12px 0; font-weight: 600; }
+        h2:first-child { margin-top: 0; }
+
+        /* Сетка услуг */
+        .grid-services {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .selectable {
+            border: 1.5px solid #edf2f7;
+            border-radius: var(--border-radius);
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+
+        .selectable.active {
+            border-color: var(--accent);
+            background-color: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 600;
+            transform: scale(0.98);
+        }
+
+        /* Горизонтальные списки (Мастера и Даты) */
+        .scroll-x {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding-bottom: 5px;
+            scrollbar-width: none; /* Скрываем скроллбар в Firefox */
+        }
+        .scroll-x::-webkit-scrollbar { display: none; } /* Скрываем скроллбар в Chrome/Safari */
+
+        .chip {
+            flex: 0 0 auto;
+            padding: 10px 18px;
+            background: #f1f3f5;
+            border-radius: 25px;
+            font-size: 0.85rem;
+        }
+
+        .chip.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Кнопка подтверждения */
+        #main-btn {
+            position: sticky;
+            bottom: 20px;
+            width: 100%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 30px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(255, 133, 162, 0.3);
+        }
+
+        #main-btn:disabled { background: #ccc; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <h2>Услуга</h2>
+    <div class="grid-services" id="service-list">
+        </div>
+
+    <h2>Мастер</h2>
+    <div class="scroll-x" id="master-list">
+        </div>
+
+    <h2>Дата</h2>
+    <div class="scroll-x" id="date-list">
+        </div>
+
+    <h2>Время</h2>
+    <div class="grid-services" id="time-list" style="grid-template-columns: repeat(4, 1fr);">
+        </div>
+
+    <button id="main-btn" onclick="sendToBot()">Подтвердить запись</button>
+</div>
+
+<script>
+    let tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const services = ["Стрижка", "Окрашивание", "Педикюр", "Маникюр", "Брови"];
+    const masters = ["Елена", "Светлана", "Екатерина", "Ольга", "Любой мастер"];
+    const times = ["10:00", "12:00", "14:00", "16:00"];
+
+    let selection = { service: '', master: '', date: '', time: '' };
+
+    // Функция создания элементов
+    function renderOptions(containerId, list, type) {
+        const container = document.getElementById(containerId);
+        list.forEach(item => {
+            const div = document.createElement('div');
+            div.className = type === 'service' ? 'selectable' : 'chip';
+            div.textContent = item;
+            div.onclick = () => {
+                container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+                div.classList.add('active');
+                selection[type] = item;
+                checkReady();
+            };
+            container.appendChild(div);
+        });
+    }
+
+    // Генерация дат (Сегодня + 6 дней)
+    function generateDates() {
+        const dateContainer = document.getElementById('date-list');
+        for (let i = 0; i < 7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const dayName = i === 0 ? "Сегодня" : d.toLocaleDateString('ru-RU', { weekday: 'short' });
+            
+            const div = document.createElement('div');
+            div.className = 'chip';
+            div.innerHTML = `<b>${dayName}</b><br><small>${dateStr.substring(0, 5)}</small>`;
+            div.style.textAlign = 'center';
+            div.onclick = () => {
+                dateContainer.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+                div.classList.add('active');
+                selection.date = dateStr;
+                checkReady();
+            };
+            dateContainer.appendChild(div);
+        }
+    }
+
+    function checkReady() {
+        const btn = document.getElementById('main-btn');
+        if (selection.service && selection.master && selection.date && selection.time) {
+            btn.disabled = false;
+        } else {
+            btn.disabled = true;
+        }
+    }
+
+    function sendToBot() {
+        tg.sendData(JSON.stringify(selection));
+        tg.close();
+    }
+
+    // Инициализация
+    renderOptions('service-list', services, 'service');
+    renderOptions('master-list', masters, 'master');
+    renderOptions('time-list', times, 'time');
+    generateDates();
+    checkReady();
+
+</script>
+</body>
+</html>
