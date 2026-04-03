@@ -7,198 +7,153 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: #f8f9fa;
-            --container-bg: #ffffff;
-            --text-main: #2d3436;
-            --accent: #ff85a2; /* Нежно-розовый */
-            --accent-soft: #fff0f3;
-            --border-radius: 16px;
+            --bg: #ffffff;
+            --secondary: #f1f3f5;
+            --accent: #ff85a2;
+            --text: #2d3436;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
             display: flex;
-            justify-content: center; /* Центрируем контейнер на широких экранах */
-            min-height: 100vh;
+            justify-content: center;
         }
 
         #app-container {
             width: 100%;
-            max-width: 480px; /* Ограничение ширины, чтобы не растягивалось на весь монитор */
-            background: var(--container-bg);
+            max-width: 480px;
             padding: 20px;
             box-sizing: border-box;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
 
-        h2 { font-size: 1.1rem; margin: 20px 0 12px 0; font-weight: 600; }
-        h2:first-child { margin-top: 0; }
+        h2 { font-size: 1rem; margin: 20px 0 10px 0; text-transform: uppercase; letter-spacing: 1px; color: #888; }
 
-        /* Сетка услуг */
-        .grid-services {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
+        /* Гибкая сетка для ВСЕГО */
+        .flex-container {
+            display: flex;
+            flex-wrap: wrap; /* Кнопки будут переноситься вниз */
+            gap: 8px;
         }
 
-        .selectable {
-            border: 1.5px solid #edf2f7;
-            border-radius: var(--border-radius);
-            padding: 12px 8px;
+        .item {
+            flex: 1 1 calc(33.333% - 8px); /* Минимум 3 в ряд, если тесно - перенос */
+            min-width: 80px;
+            padding: 12px 5px;
+            background: var(--secondary);
+            border-radius: 12px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            background: #fff;
-        }
-
-        .selectable.active {
-            border-color: var(--accent);
-            background-color: var(--accent-soft);
-            color: var(--accent);
-            font-weight: 600;
-            transform: scale(0.98);
-        }
-
-        /* Горизонтальные списки (Мастера и Даты) */
-        .scroll-x {
-            display: flex;
-            overflow-x: auto;
-            gap: 10px;
-            padding-bottom: 5px;
-            scrollbar-width: none; /* Скрываем скроллбар в Firefox */
-        }
-        .scroll-x::-webkit-scrollbar { display: none; } /* Скрываем скроллбар в Chrome/Safari */
-
-        .chip {
-            flex: 0 0 auto;
-            padding: 10px 18px;
-            background: #f1f3f5;
-            border-radius: 25px;
             font-size: 0.85rem;
+            transition: 0.2s;
+            border: 2px solid transparent;
         }
 
-        .chip.active {
-            background: var(--accent);
-            color: white;
+        .item.active {
+            background: #fff;
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: bold;
         }
 
-        /* Кнопка подтверждения */
+        .service-item { flex: 1 1 calc(50% - 8px); } /* Услуги по 2 в ряд */
+
         #main-btn {
-            position: sticky;
-            bottom: 20px;
             width: 100%;
             background: var(--accent);
             color: white;
             border: none;
-            padding: 16px;
-            border-radius: var(--border-radius);
+            padding: 18px;
+            border-radius: 15px;
             font-size: 1rem;
             font-weight: bold;
             margin-top: 30px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(255, 133, 162, 0.3);
+            box-shadow: 0 5px 15px rgba(255,133,162,0.3);
         }
-
-        #main-btn:disabled { background: #ccc; box-shadow: none; }
+        #main-btn:disabled { background: #eee; color: #aaa; box-shadow: none; }
     </style>
 </head>
 <body>
 
 <div id="app-container">
     <h2>Услуга</h2>
-    <div class="grid-services" id="service-list">
-        </div>
+    <div class="flex-container" id="services"></div>
 
     <h2>Мастер</h2>
-    <div class="scroll-x" id="master-list">
-        </div>
+    <div class="flex-container" id="masters"></div>
 
     <h2>Дата</h2>
-    <div class="scroll-x" id="date-list">
-        </div>
+    <div class="flex-container" id="dates"></div>
 
     <h2>Время</h2>
-    <div class="grid-services" id="time-list" style="grid-template-columns: repeat(4, 1fr);">
-        </div>
+    <div class="flex-container" id="times"></div>
 
-    <button id="main-btn" onclick="sendToBot()">Подтвердить запись</button>
+    <button id="main-btn" onclick="send()" disabled>Записаться</button>
 </div>
 
 <script>
     let tg = window.Telegram.WebApp;
     tg.expand();
 
-    const services = ["Стрижка", "Окрашивание", "Педикюр", "Маникюр", "Брови"];
-    const masters = ["Елена", "Светлана", "Екатерина", "Ольга", "Любой мастер"];
-    const times = ["10:00", "12:00", "14:00", "16:00"];
+    const data = {
+        services: ["Стрижка", "Окрашивание", "Педикюр", "Маникюр", "Брови"],
+        masters: ["Елена", "Светлана", "Екатерина", "Ольга", "Любой"],
+        times: ["10:00", "12:00", "14:00", "16:00"]
+    };
 
     let selection = { service: '', master: '', date: '', time: '' };
 
-    // Функция создания элементов
-    function renderOptions(containerId, list, type) {
+    function createItems(containerId, list, type) {
         const container = document.getElementById(containerId);
-        list.forEach(item => {
+        list.forEach(val => {
             const div = document.createElement('div');
-            div.className = type === 'service' ? 'selectable' : 'chip';
-            div.textContent = item;
+            div.className = 'item' + (type === 'service' ? ' service-item' : '');
+            div.textContent = val;
             div.onclick = () => {
                 container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
-                selection[type] = item;
-                checkReady();
+                selection[type] = val;
+                validate();
             };
             container.appendChild(div);
         });
     }
 
-    // Генерация дат (Сегодня + 6 дней)
     function generateDates() {
-        const dateContainer = document.getElementById('date-list');
+        const container = document.getElementById('dates');
         for (let i = 0; i < 7; i++) {
             const d = new Date();
             d.setDate(d.getDate() + i);
-            const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const dayName = i === 0 ? "Сегодня" : d.toLocaleDateString('ru-RU', { weekday: 'short' });
-            
+            const s = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const div = document.createElement('div');
-            div.className = 'chip';
-            div.innerHTML = `<b>${dayName}</b><br><small>${dateStr.substring(0, 5)}</small>`;
-            div.style.textAlign = 'center';
+            div.className = 'item';
+            div.innerHTML = `<b>${i===0?'Сегодня':d.toLocaleDateString('ru-RU',{weekday:'short'})}</b><br>${s.slice(0,5)}`;
             div.onclick = () => {
-                dateContainer.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+                container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
-                selection.date = dateStr;
-                checkReady();
+                selection.date = s;
+                validate();
             };
-            dateContainer.appendChild(div);
+            container.appendChild(div);
         }
     }
 
-    function checkReady() {
+    function validate() {
         const btn = document.getElementById('main-btn');
-        if (selection.service && selection.master && selection.date && selection.time) {
-            btn.disabled = false;
-        } else {
-            btn.disabled = true;
-        }
+        btn.disabled = !(selection.service && selection.master && selection.date && selection.time);
     }
 
-    function sendToBot() {
+    function send() {
         tg.sendData(JSON.stringify(selection));
         tg.close();
     }
 
-    // Инициализация
-    renderOptions('service-list', services, 'service');
-    renderOptions('master-list', masters, 'master');
-    renderOptions('time-list', times, 'time');
+    createItems('services', data.services, 'service');
+    createItems('masters', data.masters, 'master');
+    createItems('times', data.times, 'time');
     generateDates();
-    checkReady();
-
 </script>
 </body>
 </html>
