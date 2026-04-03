@@ -3,101 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Beauty Studio</title>
+    <title>Beauty Studio App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --bg: #ffffff;
-            --secondary: #f1f3f5;
-            --accent: #ff85a2;
-            --text: #2d3436;
-        }
-
-        body {
-            font-family: -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-        }
-
-        #app-container {
-            width: 100%;
-            max-width: 480px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        h2 { font-size: 1rem; margin: 20px 0 10px 0; text-transform: uppercase; letter-spacing: 1px; color: #888; }
-
-        /* Гибкая сетка для ВСЕГО */
-        .flex-container {
-            display: flex;
-            flex-wrap: wrap; /* Кнопки будут переноситься вниз */
-            gap: 8px;
-        }
-
-        .item {
-            flex: 1 1 calc(33.333% - 8px); /* Минимум 3 в ряд, если тесно - перенос */
-            min-width: 80px;
-            padding: 12px 5px;
-            background: var(--secondary);
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: 0.2s;
-            border: 2px solid transparent;
-        }
-
-        .item.active {
-            background: #fff;
-            border-color: var(--accent);
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        .service-item { flex: 1 1 calc(50% - 8px); } /* Услуги по 2 в ряд */
-
-        #main-btn {
-            width: 100%;
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 15px;
-            font-size: 1rem;
-            font-weight: bold;
-            margin-top: 30px;
-            box-shadow: 0 5px 15px rgba(255,133,162,0.3);
-        }
+        :root { --bg: #ffffff; --secondary: #f1f3f5; --accent: #ff85a2; --text: #2d3436; }
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; }
+        #app-container { width: 100%; max-width: 480px; padding: 20px; box-sizing: border-box; }
+        h2 { font-size: 0.9rem; margin: 20px 0 10px 0; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+        .flex-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        .item { flex: 1 1 calc(33.333% - 8px); min-width: 80px; padding: 12px 5px; background: var(--secondary); border-radius: 12px; text-align: center; cursor: pointer; font-size: 0.85rem; transition: 0.2s; border: 2px solid transparent; }
+        .item.active { background: #fff; border-color: var(--accent); color: var(--accent); font-weight: bold; }
+        .service-item { flex: 1 1 calc(50% - 8px); }
+        #main-btn { width: 100%; background: var(--accent); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 1rem; font-weight: bold; margin-top: 30px; box-shadow: 0 5px 15px rgba(255,133,162,0.3); }
         #main-btn:disabled { background: #eee; color: #aaa; box-shadow: none; }
     </style>
 </head>
 <body>
-
 <div id="app-container">
     <h2>Услуга</h2>
     <div class="flex-container" id="services"></div>
-
     <h2>Мастер</h2>
     <div class="flex-container" id="masters"></div>
-
     <h2>Дата</h2>
     <div class="flex-container" id="dates"></div>
-
     <h2>Время</h2>
     <div class="flex-container" id="times"></div>
-
     <button id="main-btn" onclick="send()" disabled>Записаться</button>
 </div>
 
 <script>
     let tg = window.Telegram.WebApp;
+    tg.ready();
     tg.expand();
 
-    const data = {
+    const config = {
         services: ["Стрижка", "Окрашивание", "Педикюр", "Маникюр", "Брови"],
         masters: ["Елена", "Светлана", "Екатерина", "Ольга", "Любой"],
         times: ["10:00", "12:00", "14:00", "16:00"]
@@ -105,8 +44,8 @@
 
     let selection = { service: '', master: '', date: '', time: '' };
 
-    function createItems(containerId, list, type) {
-        const container = document.getElementById(containerId);
+    function createItems(id, list, type) {
+        const container = document.getElementById(id);
         list.forEach(val => {
             const div = document.createElement('div');
             div.className = 'item' + (type === 'service' ? ' service-item' : '');
@@ -126,14 +65,14 @@
         for (let i = 0; i < 7; i++) {
             const d = new Date();
             d.setDate(d.getDate() + i);
-            const s = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const fullDate = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const div = document.createElement('div');
             div.className = 'item';
-            div.innerHTML = `<b>${i===0?'Сегодня':d.toLocaleDateString('ru-RU',{weekday:'short'})}</b><br>${s.slice(0,5)}`;
+            div.innerHTML = `<b>${i===0?'Сегодня':d.toLocaleDateString('ru-RU',{weekday:'short'})}</b><br>${fullDate.slice(0,5)}`;
             div.onclick = () => {
                 container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
-                selection.date = s;
+                selection.date = fullDate; // Отправляем полную дату ДД.ММ.ГГГГ
                 validate();
             };
             container.appendChild(div);
@@ -141,8 +80,7 @@
     }
 
     function validate() {
-        const btn = document.getElementById('main-btn');
-        btn.disabled = !(selection.service && selection.master && selection.date && selection.time);
+        document.getElementById('main-btn').disabled = !(selection.service && selection.master && selection.date && selection.time);
     }
 
     function send() {
@@ -150,9 +88,9 @@
         tg.close();
     }
 
-    createItems('services', data.services, 'service');
-    createItems('masters', data.masters, 'master');
-    createItems('times', data.times, 'time');
+    createItems('services', config.services, 'service');
+    createItems('masters', config.masters, 'master');
+    createItems('times', config.times, 'time');
     generateDates();
 </script>
 </body>
