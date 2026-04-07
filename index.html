@@ -19,13 +19,13 @@
             background-color: #e0e0e0 !important; 
             color: #aaa !important; 
             cursor: not-allowed; 
-            pointer-events: none; /* Чтобы нельзя было кликнуть */
-            opacity: 0.6;
+            pointer-events: none; 
+            opacity: 0.5;
         }
 
         .service-item { flex: 1 1 calc(50% - 8px); }
-        #main-btn { width: 100%; background: var(--accent); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 1rem; font-weight: bold; margin-top: 30px; box-shadow: 0 5px 15px rgba(255,133,162,0.3); }
-        #main-btn:disabled { background: #eee; color: #aaa; box-shadow: none; }
+        #main-btn { width: 100%; background: var(--accent); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 1rem; font-weight: bold; margin-top: 30px; box-shadow: 0 5px 15px rgba(255,133,162,0.3); transition: 0.3s; }
+        #main-btn:disabled { background: #eee; color: #aaa; box-shadow: none; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -37,8 +37,9 @@
     <h2>Дата</h2>
     <div class="flex-container" id="dates"></div>
     <h2>Время</h2>
-    <div id="time-message" style="color: #aaa; font-size: 0.8rem;">Сначала выберите мастера и дату</div>
-    <div class="flex-container" id="times"></div>
+    <div id="time-slots" class="flex-container">
+        <p style="color: #aaa; font-size: 0.8rem; width: 100%;">Сначала выберите мастера и дату</p>
+    </div>
     <button id="main-btn" onclick="send()" disabled>Записаться</button>
 </div>
 
@@ -55,7 +56,7 @@
 
     let selection = { service: '', master: '', date: '', time: '' };
 
-    // Получаем список занятых из ссылки
+    // Читаем список занятых мест из URL
     const urlParams = new URLSearchParams(window.location.search);
     const busyString = urlParams.get('busy') || "";
     const busySlots = busyString.split(',');
@@ -71,9 +72,9 @@
                 div.classList.add('active');
                 selection[type] = val;
                 
-                // Если изменили мастера или дату - перерисовываем время
+                // Если меняем мастера или дату — перерисовываем время
                 if (type === 'master' || type === 'date') {
-                    renderTimeSlots();
+                    renderTimeButtons();
                 }
                 validate();
             };
@@ -94,34 +95,32 @@
                 container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
                 selection.date = fullDate;
-                renderTimeSlots(); // Перерисовываем время
+                renderTimeButtons(); // Обновляем кнопки времени
                 validate();
             };
             container.appendChild(div);
         }
     }
 
-    function renderTimeSlots() {
-        const container = document.getElementById('times');
-        const msg = document.getElementById('time-message');
-        container.innerHTML = '';
-        
+    function renderTimeButtons() {
+        const container = document.getElementById('time-slots');
+        container.innerHTML = ""; // Очищаем старые кнопки
+
         if (!selection.date || !selection.master) {
-            msg.style.display = 'block';
+            container.innerHTML = '<p style="color: #aaa; font-size: 0.8rem; width: 100%;">Сначала выберите мастера и дату</p>';
             return;
         }
-        msg.style.display = 'none';
 
         config.times.forEach(time => {
             const div = document.createElement('div');
             div.className = 'item';
             div.textContent = time;
 
-            // Формируем ключ для проверки (как в Python)
+            // Формируем ключ для проверки занятости: "08.10.2023_14:00_Елена"
             const currentSlot = `${selection.date}_${time}_${selection.master}`.replace(/\s/g, "");
 
             if (busySlots.includes(currentSlot)) {
-                div.classList.add('busy');
+                div.classList.add('busy'); // Серый цвет, нажать нельзя
             } else {
                 div.onclick = () => {
                     container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
@@ -135,8 +134,7 @@
     }
 
     function validate() {
-        const btn = document.getElementById('main-btn');
-        btn.disabled = !(selection.service && selection.master && selection.date && selection.time);
+        document.getElementById('main-btn').disabled = !(selection.service && selection.master && selection.date && selection.time);
     }
 
     function send() {
@@ -144,11 +142,11 @@
         tg.close();
     }
 
-    // Инициализация
+    // Запуск
     createItems('services', config.services, 'service');
     createItems('masters', config.masters, 'master');
     generateDates();
-    // Время изначально пустое, пока не выберут дату/мастера
+    // Время появится только после клика по мастеру/дате
 
 </script>
 </body>
