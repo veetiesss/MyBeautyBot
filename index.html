@@ -13,6 +13,16 @@
         .flex-container { display: flex; flex-wrap: wrap; gap: 8px; }
         .item { flex: 1 1 calc(33.333% - 8px); min-width: 80px; padding: 12px 5px; background: var(--secondary); border-radius: 12px; text-align: center; cursor: pointer; font-size: 0.85rem; transition: 0.2s; border: 2px solid transparent; }
         .item.active { background: #fff; border-color: var(--accent); color: var(--accent); font-weight: bold; }
+        
+        /* Стиль для занятых кнопок */
+        .item.busy { 
+            background-color: #e0e0e0 !important; 
+            color: #aaa !important; 
+            cursor: not-allowed; 
+            pointer-events: none; /* Чтобы нельзя было кликнуть */
+            opacity: 0.6;
+        }
+
         .service-item { flex: 1 1 calc(50% - 8px); }
         #main-btn { width: 100%; background: var(--accent); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 1rem; font-weight: bold; margin-top: 30px; box-shadow: 0 5px 15px rgba(255,133,162,0.3); }
         #main-btn:disabled { background: #eee; color: #aaa; box-shadow: none; }
@@ -27,6 +37,7 @@
     <h2>Дата</h2>
     <div class="flex-container" id="dates"></div>
     <h2>Время</h2>
+    <div id="time-message" style="color: #aaa; font-size: 0.8rem;">Сначала выберите мастера и дату</div>
     <div class="flex-container" id="times"></div>
     <button id="main-btn" onclick="send()" disabled>Записаться</button>
 </div>
@@ -39,10 +50,15 @@
     const config = {
         services: ["Стрижка", "Окрашивание", "Педикюр", "Маникюр", "Брови"],
         masters: ["Елена", "Светлана", "Екатерина", "Ольга", "Любой"],
-        times: ["10:00", "12:00", "14:00", "16:00"]
+        times: ["10:00", "12:00", "14:00", "16:00", "18:00"]
     };
 
     let selection = { service: '', master: '', date: '', time: '' };
+
+    // Получаем список занятых из ссылки
+    const urlParams = new URLSearchParams(window.location.search);
+    const busyString = urlParams.get('busy') || "";
+    const busySlots = busyString.split(',');
 
     function createItems(id, list, type) {
         const container = document.getElementById(id);
@@ -54,6 +70,11 @@
                 container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
                 selection[type] = val;
+                
+                // Если изменили мастера или дату - перерисовываем время
+                if (type === 'master' || type === 'date') {
+                    renderTimeSlots();
+                }
                 validate();
             };
             container.appendChild(div);
@@ -72,15 +93,50 @@
             div.onclick = () => {
                 container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
                 div.classList.add('active');
-                selection.date = fullDate; // Отправляем полную дату ДД.ММ.ГГГГ
+                selection.date = fullDate;
+                renderTimeSlots(); // Перерисовываем время
                 validate();
             };
             container.appendChild(div);
         }
     }
 
+    function renderTimeSlots() {
+        const container = document.getElementById('times');
+        const msg = document.getElementById('time-message');
+        container.innerHTML = '';
+        
+        if (!selection.date || !selection.master) {
+            msg.style.display = 'block';
+            return;
+        }
+        msg.style.display = 'none';
+
+        config.times.forEach(time => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.textContent = time;
+
+            // Формируем ключ для проверки (как в Python)
+            const currentSlot = `${selection.date}_${time}_${selection.master}`.replace(/\s/g, "");
+
+            if (busySlots.includes(currentSlot)) {
+                div.classList.add('busy');
+            } else {
+                div.onclick = () => {
+                    container.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    selection.time = time;
+                    validate();
+                };
+            }
+            container.appendChild(div);
+        });
+    }
+
     function validate() {
-        document.getElementById('main-btn').disabled = !(selection.service && selection.master && selection.date && selection.time);
+        const btn = document.getElementById('main-btn');
+        btn.disabled = !(selection.service && selection.master && selection.date && selection.time);
     }
 
     function send() {
@@ -88,10 +144,12 @@
         tg.close();
     }
 
+    // Инициализация
     createItems('services', config.services, 'service');
     createItems('masters', config.masters, 'master');
-    createItems('times', config.times, 'time');
     generateDates();
+    // Время изначально пустое, пока не выберут дату/мастера
+
 </script>
 </body>
 </html>
